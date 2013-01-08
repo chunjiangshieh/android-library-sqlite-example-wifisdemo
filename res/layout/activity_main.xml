@@ -6,6 +6,18 @@
     android:orientation="vertical"
     tools:context=".MainActivity" >
 
+    <TextView
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:text="每过下面一段距离获取一次网络列表(单位：米)" >
+    </TextView>
+
+    <Spinner
+        android:id="@+id/Spinner01"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content" >
+    </Spinner>
+
     <Button
         android:id="@+id/btn"
         android:layout_width="fill_parent"

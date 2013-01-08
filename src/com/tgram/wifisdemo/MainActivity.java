@@ -20,18 +20,25 @@ import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemSelectedListener;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Spinner;
 import android.widget.TextView;
 
 @SuppressLint("NewApi")
 public class MainActivity extends Activity {
 
 	private static final String TAG = MainActivity.class.getSimpleName();
+	
+	private static final String[] distances={"5","10","20","30","40","50","100"};
 
 	public static String IP;             //本机IP
 	public static String MAC;            //本机MAC
 
+	Spinner spinner = null;
 	Button btn=null;
 	Button scan_btn = null;
 	EditText ip_txt=null;
@@ -42,6 +49,12 @@ public class MainActivity extends Activity {
 	
 	private DaoWifiInfo mDaoWifiInfo;
 	private ModelWifiInfo mModelWifiInfo;
+	//默认是5米
+	private static long distance = 5;
+	
+	 private ArrayAdapter<String> adapter;  
+	 
+	 private boolean isFirstLoc = true;  //是否是第一次定位
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -67,15 +80,64 @@ public class MainActivity extends Activity {
 		mac_txt=(EditText)findViewById(R.id.mac_txt);
 		scan_btn = (Button) findViewById(R.id.scan_btn);
 		scan_txt = (TextView) findViewById(R.id.scan_txt);
+		initSpinner();
 	}
 
+	
+	private void initSpinner(){
+		spinner = (Spinner) findViewById(R.id.Spinner01);
+		//将可选内容与ArrayAdapter连接起来  
+		adapter = new ArrayAdapter<String>(this,android.R.layout.simple_spinner_item,
+				distances);  
+		//设置下拉列表的风格  
+		adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);  
+		//将adapter 添加到spinner中  
+		spinner.setAdapter(adapter);  
+		//添加事件Spinner事件监听    
+		spinner.setOnItemSelectedListener(new SpinnerSelectedListener());  
+		//设置默认值  
+		spinner.setVisibility(View.VISIBLE);  
+	}
+	
 
 	private void initVarible(){
 		mWifiHelper = new WifiHelper(this);
 		initBDLocationManager();
 		mDaoWifiInfo = new DaoWifiInfo(this);
 	}
+	
+	
+	 //使用数组形式操作  
+	class SpinnerSelectedListener implements OnItemSelectedListener{  
 
+		public void onItemSelected(AdapterView<?> arg0, View arg1, int arg2,  
+				long arg3) {  
+			distance = Integer.parseInt(distances[arg2]);
+		}  
+
+		public void onNothingSelected(AdapterView<?> arg0) {  
+		}  
+	} 
+
+	//单位是M
+	private static final double EARTH_RADIUS = 6378137;
+	public double getDistance(double lat1, double lng1, double lat2, double lng2){
+		double radLat1 = rad(lat1);
+		double radLat2 = rad(lat2);
+		double radLatDiffer = radLat1 - radLat2;
+		double radLngDiffer = rad(lng1) - rad(lng2);
+		double distance = 2 * Math.asin(Math.sqrt(Math.pow(Math.sin(radLatDiffer/2),2) + 
+				Math.cos(radLat1)*Math.cos(radLat2)*Math.pow(Math.sin(radLngDiffer/2),2)));
+		distance = distance * EARTH_RADIUS;
+		distance = Math.round(distance * 10000) / 10000;
+		return distance;
+	}
+	
+	private double rad(double d){
+		return d * Math.PI / 180.0;
+	}
+	
+	
 	public void onclick(View v){
 		switch (v.getId()) {
 		case R.id.btn:
@@ -184,8 +246,8 @@ public class MainActivity extends Activity {
 	
 	
 	
-	private double lastLongitude;
-	private double lastLatitude;
+	private double lastLongitude = 0.0f;
+	private double lastLatitude = 0.0f;
 	
 	
 	/**
@@ -199,13 +261,25 @@ public class MainActivity extends Activity {
 				+longitude+ "," +latitude);
 		ip_txt.setText("Longitude: "+longitude);
 		mac_txt.setText("Latitude: "+latitude);
+		//位置改变
 		
-		if(longitude != lastLongitude
-				|| latitude != lastLatitude){  //位置改变
+//		if(longitude != lastLongitude
+//				|| latitude != lastLatitude){  
+//			insert(longitude, latitude);
+//			lastLongitude = longitude;
+//			lastLatitude = latitude;
+//		}
+		
+		//第一次定位或者两次位置超过distance时搜索网路列表
+		if(isFirstLoc
+				||(getDistance(lastLatitude, lastLongitude,latitude, longitude) > distance)){
+			Log.d(TAG, "---------------->need insert ");
 			insert(longitude, latitude);
+			lastLongitude = longitude;
+			lastLatitude = latitude;
+			isFirstLoc = false;
 		}
-		lastLongitude = longitude;
-		lastLatitude = latitude;
+	
 	}
 	
 	/**
